@@ -2,6 +2,13 @@
 
 Minimalistisches, zweisprachiges Reservierungssystem für den Seminarraum des Instituts für Humangenetik. Die Oberfläche orientiert sich an der blau-weißen Gestaltung der Institutswebsite.
 
+## Live
+
+- App: https://tyasird.github.io/seminarraum-kalender/
+- Quellcode: https://github.com/tyasird/seminarraum-kalender
+
+Die öffentliche Version läuft aktuell im Demo-Modus. Reservierungen werden dabei nur im jeweiligen Browser gespeichert; für den gemeinsamen Institutsbetrieb muss Supabase verbunden werden.
+
 ## Lokal starten
 
 ```bash
