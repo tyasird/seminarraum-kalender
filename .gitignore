@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.local
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+.DS_Store
+Thumbs.db
+work/
+outputs/
+
+.vercel
+.env*
+!.env.example
