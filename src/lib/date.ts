@@ -22,6 +22,18 @@ export function addWeeks(date: Date, weeks: number): Date {
   return addDays(date, weeks * 7)
 }
 
+export function startOfMonth(date: Date): Date {
+  const result = new Date(date.getFullYear(), date.getMonth(), 1)
+  result.setHours(0, 0, 0, 0)
+  return result
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const result = new Date(date.getFullYear(), date.getMonth() + months, 1)
+  result.setHours(0, 0, 0, 0)
+  return result
+}
+
 export function toDateKey(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')

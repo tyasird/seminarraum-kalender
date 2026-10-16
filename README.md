@@ -9,6 +9,12 @@ Minimalistisches, zweisprachiges Reservierungssystem für den Seminarraum des In
 
 Die öffentliche Version läuft aktuell im Demo-Modus. Reservierungen werden dabei nur im jeweiligen Browser gespeichert; für den gemeinsamen Institutsbetrieb muss Supabase verbunden werden.
 
+## Ansichten
+
+- Responsive Wochenansicht: auf Mobilgeräten wird jeweils ein Arbeitstag als vertikale Zeitleiste dargestellt.
+- Monatsansicht mit Reservierungsanzahl und Tagesagenda.
+- Reservierungsformular als Seitenleiste auf Desktop und als Bottom-Sheet auf Mobilgeräten.
+
 ## Lokal starten
 
 ```bash

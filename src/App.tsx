@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthScreen } from './components/AuthScreen'
 import { BookingDrawer } from './components/BookingDrawer'
 import { Header } from './components/Header'
+import { MonthCalendar } from './components/MonthCalendar'
 import { WeekCalendar } from './components/WeekCalendar'
 import { copy } from './i18n'
 import { createBooking, deleteBooking, listBookings, updateBooking } from './lib/bookings'
-import { addDays, addWeeks, fromDateAndHour, startOfWeek } from './lib/date'
+import { addDays, addMonths, addWeeks, fromDateAndHour, startOfMonth, startOfWeek, toDateKey } from './lib/date'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import type { Booking, BookingDraft, Language, User } from './types'
 
@@ -17,6 +18,12 @@ function App() {
   const [user, setUser] = useState<User | null>(() => (!isSupabaseConfigured && localStorage.getItem('seminarraum-demo') === 'true' ? DEMO_USER : null))
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  const [month, setMonth] = useState(() => startOfMonth(new Date()))
+  const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('week')
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date()
+    return toDateKey(today.getDay() >= 1 && today.getDay() <= 5 ? today : startOfWeek(today))
+  })
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; hour: number } | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
@@ -55,22 +62,24 @@ function App() {
 
   const load = useCallback(async () => {
     if (!user) return
-    const rangeStart = weekStart.toISOString()
-    const rangeEnd = addDays(weekStart, 7).toISOString()
+    const rangeStart = calendarMode === 'week' ? weekStart.toISOString() : addDays(startOfWeek(month), -7).toISOString()
+    const rangeEnd = calendarMode === 'week' ? addDays(weekStart, 7).toISOString() : addDays(addMonths(month, 1), 7).toISOString()
     try {
       setBookings(await listBookings(rangeStart, rangeEnd))
       setError(null)
     } catch {
       setError(language === 'de' ? 'Reservierungen konnten nicht geladen werden.' : 'Bookings could not be loaded.')
     }
-  }, [language, user, weekStart])
+  }, [calendarMode, language, month, user, weekStart])
 
   useEffect(() => { void load() }, [load])
 
   const visibleBookings = useMemo(() => bookings.filter((booking) => {
     const start = new Date(booking.start)
-    return start >= weekStart && start < addDays(weekStart, 5)
-  }), [bookings, weekStart])
+    return calendarMode === 'week'
+      ? start >= weekStart && start < addDays(weekStart, 5)
+      : start.getMonth() === month.getMonth() && start.getFullYear() === month.getFullYear()
+  }), [bookings, calendarMode, month, weekStart])
 
   if (!authReady) return <div className="loading-screen" />
   if (!user) {
@@ -144,29 +153,68 @@ function App() {
             <button className="new-booking-button" onClick={() => {
               const now = new Date()
               const hour = Math.min(17, Math.max(8, now.getHours()))
-              setSelectedSlot({ date: weekStart.toISOString().slice(0, 10), hour })
+              setSelectedSlot({ date: selectedDate, hour })
               setSelectedBooking(null)
             }}><Plus size={18} /> {text.create}</button>
           </div>
+          <div className="view-switch" aria-label={text.calendar}>
+            <button className={calendarMode === 'week' ? 'active' : ''} onClick={() => {
+              setCalendarMode('week')
+              setWeekStart(startOfWeek(new Date(`${selectedDate}T12:00:00`)))
+            }}>{text.week}</button>
+            <button className={calendarMode === 'month' ? 'active' : ''} onClick={() => {
+              setCalendarMode('month')
+              setMonth(startOfMonth(new Date(`${selectedDate}T12:00:00`)))
+            }}>{text.month}</button>
+          </div>
           <div className="calendar-toolbar">
-            <button className="square-button" onClick={() => setWeekStart((value) => addWeeks(value, -1))} aria-label={text.previousWeek}><ChevronLeft size={20} /></button>
-            <button className="today-button" onClick={() => setWeekStart(startOfWeek(new Date()))}>{text.today}</button>
-            <button className="square-button" onClick={() => setWeekStart((value) => addWeeks(value, 1))} aria-label={text.nextWeek}><ChevronRight size={20} /></button>
-            <strong>{new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short' }).format(weekStart)} – {new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(addDays(weekStart, 4))}</strong>
+            <button className="square-button" onClick={() => {
+              if (calendarMode === 'week') {
+                const next = addWeeks(weekStart, -1); setWeekStart(next); setSelectedDate(toDateKey(next))
+              } else {
+                const next = addMonths(month, -1); setMonth(next); setSelectedDate(toDateKey(next))
+              }
+            }} aria-label={calendarMode === 'week' ? text.previousWeek : text.previousMonth}><ChevronLeft size={20} /></button>
+            <button className="today-button" onClick={() => {
+              const today = new Date(); setWeekStart(startOfWeek(today)); setMonth(startOfMonth(today)); setSelectedDate(toDateKey(today))
+            }}>{text.today}</button>
+            <button className="square-button" onClick={() => {
+              if (calendarMode === 'week') {
+                const next = addWeeks(weekStart, 1); setWeekStart(next); setSelectedDate(toDateKey(next))
+              } else {
+                const next = addMonths(month, 1); setMonth(next); setSelectedDate(toDateKey(next))
+              }
+            }} aria-label={calendarMode === 'week' ? text.nextWeek : text.nextMonth}><ChevronRight size={20} /></button>
+            <strong>{calendarMode === 'week'
+              ? `${new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short' }).format(weekStart)} – ${new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(addDays(weekStart, 4))}`
+              : new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { month: 'long', year: 'numeric' }).format(month)}</strong>
           </div>
           {activeView === 'mine' && visibleBookings.every((booking) => booking.ownerId !== user.id) ? (
             <div className="empty-state"><Info size={21} /><span>{text.noMine}</span><button onClick={() => setActiveView('calendar')}>{text.backToAll}</button></div>
           ) : null}
-          <WeekCalendar
+          {calendarMode === 'week' ? <WeekCalendar
             weekStart={weekStart}
             bookings={visibleBookings}
             text={text}
             activeView={activeView}
             currentUserId={user.id}
             selectedSlot={selectedSlot}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
             onSlotSelect={(date, hour) => { setSelectedSlot({ date, hour }); setSelectedBooking(null); setError(null) }}
             onBookingSelect={(booking) => { setSelectedBooking(booking); setSelectedSlot(null); setError(null) }}
-          />
+          /> : <MonthCalendar
+            month={month}
+            bookings={visibleBookings}
+            text={text}
+            language={language}
+            activeView={activeView}
+            currentUserId={user.id}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            onSlotSelect={(date, hour) => { setSelectedDate(date); setSelectedSlot({ date, hour }); setSelectedBooking(null); setError(null) }}
+            onBookingSelect={(booking) => { setSelectedBooking(booking); setSelectedSlot(null); setError(null) }}
+          />}
         </section>
         {selectedSlot || selectedBooking ? (
           <>
